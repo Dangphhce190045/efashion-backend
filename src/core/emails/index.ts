@@ -5,15 +5,26 @@ import nodemailer from 'nodemailer';
 class EmailServices {
   private transporter: nodemailer.Transporter;
   constructor(private senderName: string, private email: string, pass: string) {
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp-relay.brevo.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: this.email,
-        pass: pass,
-      },
-    });
+    const isGmail = this.email.endsWith('@gmail.com');
+    this.transporter = nodemailer.createTransport(
+      isGmail
+        ? {
+            service: 'gmail',
+            auth: {
+              user: this.email,
+              pass: pass.replace(/\s+/g, ''),
+            },
+          }
+        : {
+            host: 'smtp-relay.brevo.com',
+            port: 587,
+            secure: false,
+            auth: {
+              user: this.email,
+              pass: pass.replace(/\s+/g, ''),
+            },
+          },
+    );
   }
   private async sendMail(content: Omit<nodemailer.SendMailOptions, 'from'>) {
     await this.transporter.sendMail({

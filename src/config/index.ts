@@ -1,13 +1,37 @@
 import * as fs from 'fs';
-import { join } from 'node:path';
+import * as crypto from 'crypto';
+import { join, dirname } from 'node:path';
+
+function loadOrGenerateKey(envKey: string, type: 'private' | 'public'): string {
+  const filePath = process.env[envKey] || (type === 'private' ? 'keys/private.key' : 'keys/public.key');
+  if (fs.existsSync(filePath)) {
+    return fs.readFileSync(filePath, 'utf-8');
+  }
+
+  const dir = dirname(filePath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+
+  const privPath = join(dir, 'private.key');
+  const pubPath = join(dir, 'public.key');
+  fs.writeFileSync(privPath, privateKey);
+  fs.writeFileSync(pubPath, publicKey);
+
+  return type === 'private' ? privateKey : publicKey;
+}
 
 const Config = {
-  PORT: process.env['PORT']!,
+  PORT: process.env['PORT'] || '8080',
   MONGODB_URI: process.env['MONGODB_URI']!,
-  ACCESS_TOKEN_PRIVATE_KEY: fs.readFileSync(process.env['ACCESS_TOKEN_PRIVATE_KEY']!, 'utf-8'),
-  ACCESS_TOKEN_PUBLIC_KEY: fs.readFileSync(process.env['ACCESS_TOKEN_PUBLIC_KEY']!, 'utf-8'),
-  REFRESH_TOKEN_PRIVATE_KEY: fs.readFileSync(process.env['REFRESH_TOKEN_PRIVATE_KEY']!, 'utf-8'),
-  REFRESH_TOKEN_PUBLIC_KEY: fs.readFileSync(process.env['REFRESH_TOKEN_PUBLIC_KEY']!, 'utf-8'),
+  ACCESS_TOKEN_PRIVATE_KEY: loadOrGenerateKey('ACCESS_TOKEN_PRIVATE_KEY', 'private'),
+  ACCESS_TOKEN_PUBLIC_KEY: loadOrGenerateKey('ACCESS_TOKEN_PUBLIC_KEY', 'public'),
+  REFRESH_TOKEN_PRIVATE_KEY: loadOrGenerateKey('REFRESH_TOKEN_PRIVATE_KEY', 'private'),
+  REFRESH_TOKEN_PUBLIC_KEY: loadOrGenerateKey('REFRESH_TOKEN_PUBLIC_KEY', 'public'),
   REFRESH_TOKEN_EXP: process.env['REFRESH_TOKEN_EXP']!,
   ACCESS_TOKEN_EXP: process.env['ACCESS_TOKEN_EXP']!,
   GOOGLE_ID: process.env['GOOGLE_CLIENT_ID']!,
